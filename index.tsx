@@ -60,6 +60,11 @@ const VOICE_MAP = [
   { name: 'Puck (Energetic)', value: 'Puck' },
 ];
 
+interface TranscriptionSegment {
+  text: string;
+  type: 'user' | 'agent';
+}
+
 @customElement('gdm-live-audio')
 export class GdmLiveAudio extends LitElement {
   @state() isRecording = false;
@@ -71,8 +76,8 @@ export class GdmLiveAudio extends LitElement {
   @state() isSettingsOpen = false;
   @state() systemPrompt = DEFAULT_PERSONA;
   @state() selectedVoice = 'Orus';
-  @state() transcription = '';
-  @state() currentTurnTranscription = '';
+  @state() transcriptionHistory: TranscriptionSegment[] = [];
+  @state() currentTurnSegments: TranscriptionSegment[] = [];
 
   @query('textarea') private textarea!: HTMLTextAreaElement;
   @query('select') private select!: HTMLSelectElement;
@@ -107,6 +112,8 @@ export class GdmLiveAudio extends LitElement {
       --accent-color: #4285f4;
       --modal-bg: rgba(255, 255, 255, 0.95);
       --danger-color: #ea4335;
+      --user-text-color: #8b5cf6;
+      --agent-text-color: var(--accent-color);
       
       display: flex;
       flex-direction: column;
@@ -131,6 +138,7 @@ export class GdmLiveAudio extends LitElement {
       --accent-color: #8ab4f8;
       --modal-bg: rgba(32, 33, 36, 0.98);
       --danger-color: #f28b82;
+      --user-text-color: #a78bfa;
     }
 
     header {
@@ -175,7 +183,7 @@ export class GdmLiveAudio extends LitElement {
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 20px;
+      padding: 40px 20px;
       text-align: center;
       overflow: hidden;
     }
@@ -188,12 +196,27 @@ export class GdmLiveAudio extends LitElement {
       font-weight: 400;
       color: var(--text-color);
       overflow-y: auto;
-      max-height: 60vh;
+      max-height: 70vh;
       scrollbar-width: none;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
     }
 
     .transcription-container::-webkit-scrollbar {
       display: none;
+    }
+
+    .segment {
+      display: inline;
+    }
+
+    .segment-user {
+      color: var(--user-text-color);
+    }
+
+    .segment-agent {
+      color: var(--agent-text-color);
     }
 
     .transcription-word {
@@ -209,10 +232,6 @@ export class GdmLiveAudio extends LitElement {
         opacity: 1;
         transform: translateY(0);
       }
-    }
-
-    .transcription-container .dim {
-      opacity: 0.5;
     }
 
     #status {
@@ -451,7 +470,7 @@ export class GdmLiveAudio extends LitElement {
         (this as unknown as HTMLElement).removeAttribute('dark');
       }
     }
-    if (changedProperties.has('currentTurnTranscription') && this.transcriptionContainer) {
+    if ((changedProperties.has('currentTurnSegments') || changedProperties.has('transcriptionHistory')) && this.transcriptionContainer) {
       this.transcriptionContainer.scrollTop = this.transcriptionContainer.scrollHeight;
     }
   }
@@ -539,16 +558,14 @@ export class GdmLiveAudio extends LitElement {
 
             // Transcription
             if (message.serverContent?.outputTranscription) {
-              const text = message.serverContent.outputTranscription.text;
-              this.currentTurnTranscription += text;
+              this.appendToTranscription(message.serverContent.outputTranscription.text, 'agent');
             } else if (message.serverContent?.inputTranscription) {
-              const text = message.serverContent.inputTranscription.text;
-              this.currentTurnTranscription += text;
+              this.appendToTranscription(message.serverContent.inputTranscription.text, 'user');
             }
 
             if (message.serverContent?.turnComplete) {
-              this.transcription = this.currentTurnTranscription;
-              this.currentTurnTranscription = '';
+              this.transcriptionHistory = [...this.transcriptionHistory, ...this.currentTurnSegments];
+              this.currentTurnSegments = [];
             }
 
             const interrupted = message.serverContent?.interrupted;
@@ -558,7 +575,7 @@ export class GdmLiveAudio extends LitElement {
                 this.sources.delete(source);
               }
               this.nextStartTime = 0;
-              this.currentTurnTranscription = '';
+              this.currentTurnSegments = [];
             }
           },
           onerror: (e: ErrorEvent) => {
@@ -582,6 +599,21 @@ export class GdmLiveAudio extends LitElement {
     } catch (e) {
       console.error('Session init failed:', e);
       this.updateError('Failed to connect to Gemini');
+    }
+  }
+
+  private appendToTranscription(text: string, type: 'user' | 'agent') {
+    const lastSegment = this.currentTurnSegments[this.currentTurnSegments.length - 1];
+    if (lastSegment && lastSegment.type === type) {
+      // Create new array with updated last segment to trigger Lit's state update
+      const newSegments = [...this.currentTurnSegments];
+      newSegments[newSegments.length - 1] = {
+        ...lastSegment,
+        text: lastSegment.text + text
+      };
+      this.currentTurnSegments = newSegments;
+    } else {
+      this.currentTurnSegments = [...this.currentTurnSegments, { text, type }];
     }
   }
 
@@ -651,7 +683,7 @@ export class GdmLiveAudio extends LitElement {
   }
 
   render() {
-    const words = (this.currentTurnTranscription || this.transcription).split(' ').filter(w => w.length > 0);
+    const allSegments = [...this.transcriptionHistory, ...this.currentTurnSegments];
 
     return html`
       <header>
@@ -672,9 +704,16 @@ export class GdmLiveAudio extends LitElement {
 
       <div class="transcription-viewport">
         <div class="transcription-container">
-          ${words.map((word, idx) => html`
-            <span class="transcription-word" style="animation-delay: ${idx * 0.02}s">${word}</span>
-          `)}
+          ${allSegments.map((segment) => {
+            const words = segment.text.split(' ').filter(w => w.length > 0);
+            return html`
+              <div class="segment segment-${segment.type}">
+                ${words.map((word, idx) => html`
+                  <span class="transcription-word" style="animation-delay: ${idx * 0.02}s">${word}</span>
+                `)}
+              </div>
+            `;
+          })}
         </div>
       </div>
 
