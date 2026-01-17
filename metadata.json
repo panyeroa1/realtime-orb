@@ -1,0 +1,7 @@
+{
+  "name": "2D Audio Orb",
+  "description": "A light-themed, draggable 2D orb that listens and responds using Gemini Live API.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}

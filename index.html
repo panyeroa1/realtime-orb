@@ -1,0 +1,35 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Orb</title>
+    <script type="importmap">
+{
+  "imports": {
+    "lit": "https://esm.sh/lit@^3.3.0",
+    "lit/": "https://esm.sh/lit@^3.3.0/",
+    "@lit/context": "https://esm.sh/@lit/context@^1.1.5",
+    "@google/genai": "https://esm.sh/@google/genai@^1.15.0",
+    "three/": "https://esm.sh/three@^0.182.0/",
+    "three": "https://esm.sh/three@^0.182.0"
+  }
+}
+</script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #f8f9fa;
+        }
+    </style>
+</head>
+<body>
+    <gdm-live-audio></gdm-live-audio>
+    <script type="module" src="./index.tsx"></script>
+</body>
+</html>
