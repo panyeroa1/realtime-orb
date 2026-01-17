@@ -37,18 +37,15 @@ export class GdmLiveAudioVisuals2D extends LitElement {
   static styles = css`
     :host {
       display: block;
-      width: 150px;
-      height: 150px;
+      width: 100%;
+      height: 100%;
       user-select: none;
       transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-    }
-    :host(:active) {
-      transform: scale(1.1);
     }
     canvas {
       width: 100%;
       height: 100%;
-      filter: drop-shadow(0 8px 24px rgba(0,0,0,0.15));
+      filter: drop-shadow(0 2px 8px rgba(0,0,0,0.1));
     }
   `;
 
@@ -75,7 +72,8 @@ export class GdmLiveAudioVisuals2D extends LitElement {
 
     const centerX = width / 2;
     const centerY = height / 2;
-    const baseRadius = 55;
+    // Base radius scaled to canvas size (45px container)
+    const baseRadius = width * 0.35;
 
     this.inputAnalyser?.update();
     this.outputAnalyser?.update();
@@ -96,19 +94,18 @@ export class GdmLiveAudioVisuals2D extends LitElement {
     this.colorTransition = this.lerp(this.colorTransition, targetTransition, 0.1);
 
     const time = performance.now() / 1000;
-    const floatY = Math.sin(time * 1.5) * 4;
-    const floatX = Math.cos(time * 1.2) * 2;
-    const breathe = Math.sin(time * 2.5) * 2.5;
-    const radius = baseRadius + breathe + (this.smoothedOutputEnergy * 45) + (this.smoothedInputEnergy * 15);
+    const floatY = Math.sin(time * 1.5) * 2;
+    const floatX = Math.cos(time * 1.2) * 1;
+    const breathe = Math.sin(time * 2.5) * 1.5;
+    const radius = baseRadius + breathe + (this.smoothedOutputEnergy * (width * 0.25)) + (this.smoothedInputEnergy * (width * 0.1));
 
     this.ctx.save();
     this.ctx.translate(floatX, floatY);
 
-    const glowRadius = radius * 1.8;
+    const glowRadius = radius * 1.6;
     const gradient = this.ctx.createRadialGradient(centerX, centerY, radius * 0.4, centerX, centerY, glowRadius);
     
-    // Default Idle colors based on Dark Mode
-    let idleColorStart = this.isDarkMode ? { r: 60, g: 64, b: 67, a: 0.5 } : { r: 218, g: 220, b: 224, a: 0.6 };
+    let idleColorStart = this.isDarkMode ? { r: 80, g: 84, b: 87, a: 0.4 } : { r: 218, g: 220, b: 224, a: 0.5 };
     let idleColorEnd = { r: 0, g: 0, b: 0, a: 0 };
 
     let glowColorStart = { ...idleColorStart };
@@ -145,8 +142,8 @@ export class GdmLiveAudioVisuals2D extends LitElement {
 
     const coreGrad = this.ctx.createLinearGradient(centerX - radius, centerY - radius, centerX + radius, centerY + radius);
     
-    let coreColor1 = this.isDarkMode ? { r: 40, g: 42, b: 44 } : { r: 218, g: 220, b: 224 };
-    let coreColor2 = this.isDarkMode ? { r: 20, g: 21, b: 22 } : { r: 154, g: 160, b: 166 };
+    let coreColor1 = this.isDarkMode ? { r: 50, g: 52, b: 54 } : { r: 228, g: 230, b: 234 };
+    let coreColor2 = this.isDarkMode ? { r: 30, g: 31, b: 32 } : { r: 164, g: 170, b: 176 };
 
     if (this.colorTransition > 0) {
       const t = this.colorTransition;
@@ -172,26 +169,10 @@ export class GdmLiveAudioVisuals2D extends LitElement {
     this.ctx.fillStyle = sheenGrad;
     this.ctx.fill();
 
-    const combinedEnergy = this.smoothedInputEnergy + this.smoothedOutputEnergy;
-    if (combinedEnergy > 0.02) {
-      const rippleCount = 2;
-      for (let i = 0; i < rippleCount; i++) {
-        const offset = (time * 2 + i / rippleCount) % 1;
-        const rippleRadius = radius + (offset * 30 * (combinedEnergy * 5));
-        const opacity = (1 - offset) * 0.5 * Math.min(1, combinedEnergy * 10);
-        
-        this.ctx.strokeStyle = `rgba(255, 255, 255, ${this.isDarkMode ? opacity * 0.6 : opacity})`;
-        this.ctx.lineWidth = 2;
-        this.ctx.beginPath();
-        this.ctx.arc(centerX, centerY, rippleRadius, 0, Math.PI * 2);
-        this.ctx.stroke();
-      }
-    }
-
     this.ctx.restore();
   }
 
   render() {
-    return html`<canvas width="300" height="300"></canvas>`;
+    return html`<canvas width="100" height="100"></canvas>`;
   }
 }
